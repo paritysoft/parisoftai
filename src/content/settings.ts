@@ -15,7 +15,7 @@ export const settingsSeed: SiteSettings = {
     logoUrl: "",
     faviconUrl: "",
     // Optional public address shown on /contact (server-side env, read at build time).
-    contactEmail: (process.env.CONTACT_PUBLIC_EMAIL ?? "").trim(),
+    contactEmail: (process.env.CONTACT_PUBLIC_EMAIL ?? "").trim() || "info@parisoftai.com",
     phone: "",
     location: "",
     socials: [],
