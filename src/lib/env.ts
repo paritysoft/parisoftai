@@ -12,6 +12,11 @@ export const serverEnv = {
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   contactFromEmail: process.env.CONTACT_FROM_EMAIL ?? "",
   contactNotificationEmail: process.env.CONTACT_NOTIFICATION_EMAIL ?? "",
+  // SMTP (e.g. Zoho Mail for info@parisoftai.com). Takes priority over Resend when set.
+  smtpUser: (process.env.SMTP_USER ?? "").trim(),
+  smtpPass: process.env.SMTP_PASS ?? "",
+  smtpHost: (process.env.SMTP_HOST ?? "").trim(),
+  smtpPort: Number(process.env.SMTP_PORT ?? 465) || 465,
   rateLimitSalt: process.env.RATE_LIMIT_SALT ?? "",
   vercelEnv: process.env.VERCEL_ENV ?? (process.env.NODE_ENV === "production" ? "production" : "development"),
   productionSupabaseRef: process.env.SUPABASE_PRODUCTION_PROJECT_REF ?? "",

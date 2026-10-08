@@ -1,4 +1,5 @@
 import "server-only";
+import nodemailer from "nodemailer";
 import { serverEnv } from "@/lib/env";
 import { escapeHtml } from "@/lib/leads/escape";
 import { absoluteUrl } from "@/lib/site";
@@ -8,14 +9,50 @@ import type { StoredLead } from "@/lib/leads/submit";
  * Sends an admin notification through Resend's HTTP API (no SDK dependency).
  * Returns "skipped" when email is not configured or notifications are disabled.
  */
+const isSmtpConfigured = () => Boolean(serverEnv.smtpUser && serverEnv.smtpPass);
+const isResendConfigured = () => Boolean(serverEnv.resendApiKey && serverEnv.contactFromEmail);
+const defaultRecipients = () => {
+  const list = serverEnv.contactNotificationEmail.split(",").map((s) => s.trim()).filter(Boolean);
+  return list.length ? list : serverEnv.smtpUser ? [serverEnv.smtpUser] : [];
+};
+
 export function isEmailDeliveryConfigured(): boolean {
-  return Boolean(serverEnv.resendApiKey && serverEnv.contactFromEmail && serverEnv.contactNotificationEmail.split(",").some((s) => s.trim()));
+  return (isSmtpConfigured() || isResendConfigured()) && defaultRecipients().length > 0;
+}
+
+/**
+ * SMTP delivery (Zoho Mail by default). Zoho uses smtp.zoho.com for free plans and
+ * smtppro.zoho.com for paid custom-domain plans, so both are tried unless SMTP_HOST is set.
+ */
+async function sendViaSmtp(msg: { to: string[]; replyTo: string; subject: string; html: string; text: string }) {
+  const hosts = serverEnv.smtpHost ? [serverEnv.smtpHost] : ["smtp.zoho.com", "smtppro.zoho.com"];
+  let lastError: unknown;
+  for (const host of hosts) {
+    const transport = nodemailer.createTransport({
+      host,
+      port: serverEnv.smtpPort,
+      secure: serverEnv.smtpPort === 465,
+      auth: { user: serverEnv.smtpUser, pass: serverEnv.smtpPass },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
+    });
+    try {
+      await transport.sendMail({ from: { name: "ParitySoft AI Website", address: serverEnv.smtpUser }, ...msg });
+      return;
+    } catch (e) {
+      lastError = e;
+    } finally {
+      transport.close();
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("SMTP delivery failed");
 }
 
 export async function sendLeadNotification(lead: StoredLead, recipients: string[], opts: { adminLink?: boolean } = {}): Promise<"sent" | "skipped"> {
   const adminLink = opts.adminLink !== false;
-  const to = recipients.length > 0 ? recipients : serverEnv.contactNotificationEmail.split(",").map((s) => s.trim()).filter(Boolean);
-  if (!serverEnv.resendApiKey || !serverEnv.contactFromEmail || to.length === 0) return "skipped";
+  const to = recipients.length > 0 ? recipients : defaultRecipients();
+  if ((!isSmtpConfigured() && !isResendConfigured()) || to.length === 0) return "skipped";
 
   const rows: [string, string | null][] = [
     ["Name", lead.fullName],
@@ -43,6 +80,12 @@ export async function sendLeadNotification(lead: StoredLead, recipients: string[
     .map(([k, v]) => `${k}: ${v}`)
     .join("\n")}\n\n${lead.projectDescription}${adminLink ? `\n\n${absoluteUrl(`/admin/leads/${lead.id}`)}` : ""}`;
 
+  const subject = `New inquiry: ${lead.serviceRequired} — ${lead.fullName}`.replace(/[\r\n]+/g, " ").slice(0, 200);
+  if (isSmtpConfigured()) {
+    await sendViaSmtp({ to, replyTo: lead.email, subject, html, text });
+    return "sent";
+  }
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${serverEnv.resendApiKey}`, "Content-Type": "application/json", "Idempotency-Key": `lead-${lead.id}` },
@@ -50,7 +93,7 @@ export async function sendLeadNotification(lead: StoredLead, recipients: string[
       from: serverEnv.contactFromEmail,
       to,
       reply_to: lead.email,
-      subject: `New inquiry: ${lead.serviceRequired} — ${lead.fullName}`.replace(/[\r\n]+/g, " ").slice(0, 200),
+      subject,
       html,
       text,
     }),
