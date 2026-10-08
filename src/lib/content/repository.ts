@@ -7,6 +7,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { createSessionClient } from "@/lib/supabase/server";
 import { mapProduct, mapProject, mapSeo, mapService } from "@/lib/content/mappers";
 import { normalizeGenericPage, normalizeHome } from "@/lib/content/normalize";
+import { listPublishedProductFiles, listPublishedProjectFiles, readRedirectFile } from "@/lib/content/file-store";
 import { serviceSeeds } from "@/content/services";
 import { pageSeeds } from "@/content/pages";
 import { settingsSeed } from "@/content/settings";
@@ -25,7 +26,8 @@ import type {
  * Single entry point for public content. Reads published rows through the anonymous
  * client (RLS-restricted). When an admin enables preview (Next.js draft mode), reads go
  * through the admin's session so drafts become visible to them only.
- * Without Supabase configured (local development), bundled seed content is returned.
+ * Without Supabase configured, bundled content is returned: services/pages/settings from
+ * src/content and portfolio projects/products from the Git-backed files in /content.
  */
 
 export class ContentError extends Error {}
@@ -124,7 +126,7 @@ export const getService = cache(async (slug: string): Promise<Service | null> =>
 
 export const listProjects = cache(async (): Promise<Project[]> => {
   const db = await getClient();
-  if (!db) return [];
+  if (!db) return listPublishedProjectFiles();
   const query = db.from("portfolio_projects").select("*, portfolio_images(*)").order("sort_order").order("created_at", { ascending: false });
   const { data, error } = (await isPreview()) ? await query.neq("status", "archived") : await query.eq("status", "published");
   if (error) fail("portfolio", error);
@@ -139,7 +141,7 @@ export const getProject = cache(async (slug: string): Promise<Project | null> =>
 
 export const listProducts = cache(async (): Promise<Product[]> => {
   const db = await getClient();
-  if (!db) return [];
+  if (!db) return listPublishedProductFiles();
   const query = db.from("products").select("*, product_images(*)").order("sort_order").order("name");
   const { data, error } = (await isPreview()) ? await query.neq("status", "archived") : await query.eq("status", "published");
   if (error) fail("products", error);
@@ -162,7 +164,7 @@ export const getSeoOverrides = cache(async (): Promise<Map<string, SeoOverride>>
 
 export async function findRedirect(path: string): Promise<string | null> {
   const db = await getClient();
-  if (!db) return null;
+  if (!db) return (await readRedirectFile()).find((r) => r.from === path)?.to ?? null;
   const { data } = await db.from("slug_redirects").select("to_path").eq("from_path", path).maybeSingle();
   return (data?.to_path as string | undefined) ?? null;
 }

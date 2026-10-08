@@ -7,7 +7,7 @@ export function GenericPage({ content, path, label }: { content: GenericPageCont
   return (
     <>
       <PageHero crumbs={[{ label, href: path }]} heading={content.heading} intro={content.intro} />
-      <div className="container-site space-y-12 pb-24">
+      <div className="container-site space-y-12 pb-20 sm:pb-24">
         {content.notice ? <Notice>{content.notice}</Notice> : null}
         {(content.mission || content.vision) && (
           <div className="grid gap-4 md:grid-cols-2">

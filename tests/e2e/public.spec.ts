@@ -44,11 +44,14 @@ test.describe("public website", () => {
     await expect(page.getByText(/We select providers and configurations/)).toBeVisible();
   });
 
-  test("empty portfolio and products show helpful empty states", async ({ page }) => {
-    await page.goto("/work");
-    await expect(page.getByText("Case studies are on the way")).toBeVisible();
-    await page.goto("/products");
-    await expect(page.getByText("Product listings are coming soon")).toBeVisible();
+  test("work and products pages are complete without published items (no placeholders)", async ({ page }) => {
+    for (const path of ["/work", "/products"]) {
+      await page.goto(path);
+      const main = page.locator("main");
+      await expect(main).not.toContainText(/coming soon|on the way|check back shortly/i);
+      await expect(main.locator("a[href^='/services/']").first()).toBeVisible();
+      await expect(main.getByRole("link", { name: /Start a Project/ })).toBeVisible();
+    }
   });
 
   test("legal pages show the draft notice", async ({ page }) => {
@@ -68,7 +71,8 @@ test.describe("public website", () => {
     const sitemap = await (await request.get("/sitemap.xml")).text();
     expect(sitemap).toContain("/services/ios-app-development");
     expect(sitemap).not.toContain("/admin");
-    expect(sitemap).not.toContain("/work<"); // no empty portfolio index
+    expect(sitemap).toContain("/work</loc>");
+    expect(sitemap).toContain("/products</loc>");
     const robots = await (await request.get("/robots.txt")).text();
     expect(robots).toMatch(/Disallow: \/admin/);
   });

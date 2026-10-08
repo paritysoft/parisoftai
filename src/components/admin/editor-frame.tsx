@@ -2,14 +2,14 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Loader2, Save, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, Loader2, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton, FormMessage, SelectInput, useUnsavedChanges } from "@/components/admin/form-controls";
-import { deleteItemAction, saveItemAction } from "@/actions/content";
+import { useEditorBackend, type EditorResult } from "@/components/admin/editor-backend";
 import { formatDateTime } from "@/lib/utils";
 import type { ContentStatus } from "@/types/content";
 
-type Result = { ok: true; message?: string; data?: { id: string } } | { ok: false; error: string; fieldErrors?: Record<string, string> };
+type Result = EditorResult;
 
 interface Props<T extends { status: ContentStatus; slug: string }> {
   collection: "services" | "portfolio" | "products";
@@ -44,6 +44,7 @@ export function EditorFrame<T extends { status: ContentStatus; slug: string }>({
   children,
 }: Props<T>) {
   const router = useRouter();
+  const backend = useEditorBackend();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<Result | null>(null);
   useUnsavedChanges(dirty && !pending);
@@ -53,7 +54,7 @@ export function EditorFrame<T extends { status: ContentStatus; slug: string }>({
   const save = () => {
     if (value.status === "published" && !window.confirm("Publish these changes to the live website?")) return;
     start(async () => {
-      const res = (await saveItemAction(collection, id, value)) as Result;
+      const res = await backend.save(collection, id, value, updatedAt ?? null);
       setResult(res);
       onFieldErrors(res.ok ? {} : res.fieldErrors ?? {});
       if (res.ok) {
@@ -67,7 +68,7 @@ export function EditorFrame<T extends { status: ContentStatus; slug: string }>({
   const remove = () =>
     start(async () => {
       if (!id) return;
-      const res = (await deleteItemAction(collection, id)) as Result;
+      const res = await backend.remove(collection, id);
       setResult(res);
       if (res.ok) {
         onSaved(value);
@@ -87,7 +88,13 @@ export function EditorFrame<T extends { status: ContentStatus; slug: string }>({
           </Button>
           {dirty ? <p className="text-xs text-amber-200">You have unsaved changes.</p> : null}
           <FormMessage result={result ? (result.ok ? { ok: true, message: result.message } : { ok: false, error: result.error }) : null} />
-          {id ? (
+          {backend.publishNote ? <p className="text-xs leading-relaxed text-fg-3">{backend.publishNote}</p> : null}
+          {id && !backend.previewEnabled && value.status === "published" && !dirty ? (
+            <a href={`${publicPrefix}${value.slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-indigo-200 hover:text-white">
+              View on website <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>
+          ) : null}
+          {id && backend.previewEnabled ? (
             <form action="/api/preview" method="GET" target="_blank">
               <input type="hidden" name="path" value={`${publicPrefix}${value.slug}`} />
               <Button type="submit" variant="secondary" className="w-full" size="sm">

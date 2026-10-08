@@ -17,13 +17,15 @@ import {
   Toggle,
   useDirty,
 } from "@/components/admin/form-controls";
-import { GalleryEditor, MediaField } from "@/components/admin/media";
+import { useEditorBackend } from "@/components/admin/editor-backend";
 import { ICON_NAMES } from "@/components/ui/icon";
 import { slugify } from "@/lib/utils";
 import { PLATFORM_LABELS, PLATFORMS, type Product, type Project, type Service } from "@/types/content";
 
 interface Common {
   id: string | null;
+  /** Admin list URL (defaults to the Supabase CMS routes). */
+  listHref?: string;
   canPublish: boolean;
   canDelete: boolean;
   updatedAt?: string | null;
@@ -36,15 +38,35 @@ function useSlugSync(isNew: boolean) {
   return { auto: !touched, touch: () => setTouched(true) };
 }
 
-function SeoCard({ title, description, onTitle, onDescription }: { title: string; description: string; onTitle: (v: string) => void; onDescription: (v: string) => void }) {
+function SeoCard({
+  title,
+  description,
+  onTitle,
+  onDescription,
+  ogImage,
+  onOgImage,
+}: {
+  title: string;
+  description: string;
+  onTitle: (v: string) => void;
+  onDescription: (v: string) => void;
+  ogImage?: string;
+  onOgImage?: (v: string) => void;
+}) {
+  const { ImageField } = useEditorBackend();
   return (
     <Card title="Search engine listing" description="Optional. Falls back to the title and short description.">
       <div className="space-y-4">
-        <TextInput label="SEO title" value={title} onChange={onTitle} maxLength={70} />
-        <TextArea label="Meta description" value={description} onChange={onDescription} maxLength={170} rows={3} />
+        <TextInput label="SEO title" value={title} onChange={onTitle} maxLength={70} hint="Shown in search results and browser tabs. Aim for 30–60 characters." />
+        <TextArea label="Meta description" value={description} onChange={onDescription} maxLength={170} rows={3} hint="Aim for 70–160 characters." />
+        {onOgImage ? <ImageField label="Social sharing image (Open Graph)" value={ogImage ?? ""} onChange={onOgImage} hint="Optional. 1200×630 recommended. Falls back to the cover image." /> : null}
       </div>
     </Card>
   );
+}
+
+function dateInputValue(v: string): string {
+  return v ? v.slice(0, 10) : "";
 }
 
 /* --------------------------------- Service -------------------------------- */
@@ -52,6 +74,7 @@ function SeoCard({ title, description, onTitle, onDescription }: { title: string
 export type ServiceForm = Omit<Service, "id" | "updatedAt" | "seoTitle" | "seoDescription" | "coverImage"> & { seoTitle: string; seoDescription: string; coverImage: string };
 
 export function ServiceEditor({ initial, ...common }: Common & { initial: ServiceForm }) {
+  const { ImageField: MediaField } = useEditorBackend();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { dirty, markSaved } = useDirty(v);
@@ -90,16 +113,15 @@ export function ServiceEditor({ initial, ...common }: Common & { initial: Servic
 
 /* --------------------------------- Project -------------------------------- */
 
-export type ProjectForm = Omit<Project, "id" | "updatedAt" | "seoTitle" | "seoDescription" | "coverImage" | "challenge" | "solution" | "attribution"> & {
-  seoTitle: string;
-  seoDescription: string;
-  coverImage: string;
-  challenge: string;
-  solution: string;
-  attribution: string;
-};
+type NullableToString<T, K extends keyof T> = Omit<T, K> & { [P in K]: string };
+
+export type ProjectForm = NullableToString<
+  Omit<Project, "id" | "updatedAt">,
+  "seoTitle" | "seoDescription" | "coverImage" | "challenge" | "solution" | "attribution" | "projectUrl" | "appStoreUrl" | "googlePlayUrl" | "microsoftStoreUrl" | "ogImage" | "publishedAt"
+>;
 
 export function ProjectEditor({ initial, ...common }: Common & { initial: ProjectForm }) {
+  const { ImageField, GalleryField } = useEditorBackend();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { dirty, markSaved } = useDirty(v);
@@ -125,7 +147,18 @@ export function ProjectEditor({ initial, ...common }: Common & { initial: Projec
               { value: "company", label: "Company-owned product" },
             ]}
           />
-          <TextArea className="md:col-span-2" label="Short description" required value={v.summary} error={errors.summary} maxLength={320} rows={2} onChange={(t) => set("summary", t)} />
+          <TextArea className="md:col-span-2" label="Short description" required value={v.summary} error={errors.summary} maxLength={320} rows={2} onChange={(t) => set("summary", t)} hint="Shown on cards and used as the meta description if none is set." />
+          {v.ownership === "client" ? (
+            <div className="md:col-span-2 rounded-xl border border-line bg-ink-950/40 p-4">
+              <Toggle
+                label="The client has authorised publishing this project"
+                checked={v.clientApproved}
+                onChange={(b) => set("clientApproved", b)}
+                hint="Required before a client project can be published."
+              />
+              {errors.clientApproved ? <p role="alert" className="mt-2 text-xs text-red-300">{errors.clientApproved}</p> : null}
+            </div>
+          ) : null}
           <TextInput className="md:col-span-2" label="Attribution / permission note" value={v.attribution} maxLength={200} onChange={(t) => set("attribution", t)} hint='Optional, e.g. "Shown with permission of Acme Ltd." or "Client name withheld (NDA)."' />
           <div className="md:col-span-2">
             <CheckboxGroup label="Platforms" options={platformOptions} value={v.platforms} onChange={(x) => set("platforms", x)} />
@@ -133,45 +166,51 @@ export function ProjectEditor({ initial, ...common }: Common & { initial: Projec
           <div className="md:col-span-2">
             <TagInput label="Technology stack" value={v.technologies} onChange={(x) => set("technologies", x)} />
           </div>
-          <TextInput label="Display order" type="number" value={String(v.sortOrder)} onChange={(n) => set("sortOrder", Number(n) || 0)} />
-          <div className="flex items-end pb-1">
+          <TextInput label="Display order" type="number" value={String(v.sortOrder)} onChange={(n) => set("sortOrder", Number(n) || 0)} hint="Lower numbers appear first." />
+          <TextInput label="Publication date" type="date" value={dateInputValue(v.publishedAt)} error={errors.publishedAt} onChange={(d) => set("publishedAt", d)} hint="Set automatically when first published." />
+          <div className="md:col-span-2">
             <Toggle label="Featured on homepage" checked={v.featured} onChange={(b) => set("featured", b)} />
           </div>
         </div>
       </Card>
+      <Card title="Links" description="Optional. Only filled-in links are shown. Must start with https://">
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextInput className="md:col-span-2" label="Project URL" value={v.projectUrl} error={errors.projectUrl} placeholder="https://" onChange={(t) => set("projectUrl", t)} />
+          <TextInput label="App Store URL" value={v.appStoreUrl} error={errors.appStoreUrl} placeholder="https://apps.apple.com/…" onChange={(t) => set("appStoreUrl", t)} />
+          <TextInput label="Google Play URL" value={v.googlePlayUrl} error={errors.googlePlayUrl} placeholder="https://play.google.com/…" onChange={(t) => set("googlePlayUrl", t)} />
+          <TextInput label="Microsoft Store URL" value={v.microsoftStoreUrl} error={errors.microsoftStoreUrl} placeholder="https://apps.microsoft.com/…" onChange={(t) => set("microsoftStoreUrl", t)} />
+        </div>
+      </Card>
       <Card title="Case study">
         <div className="space-y-6">
+          <StringListEditor label="Key features" value={v.keyFeatures} onChange={(x) => set("keyFeatures", x)} />
           <MarkdownField label="Challenge" value={v.challenge} rows={5} onChange={(t) => set("challenge", t)} />
           <MarkdownField label="Solution" value={v.solution} rows={5} onChange={(t) => set("solution", t)} />
-          <MarkdownField label="Detailed description" value={v.description} onChange={(t) => set("description", t)} />
+          <MarkdownField label="Full description" value={v.description} onChange={(t) => set("description", t)} />
           <StringListEditor label="Verified results" hint="Only include results you can substantiate." value={v.results} onChange={(x) => set("results", x)} />
-          <LinkListEditor label="External links" value={v.externalLinks} onChange={(x) => set("externalLinks", x)} />
+          <LinkListEditor label="Other links" value={v.externalLinks} onChange={(x) => set("externalLinks", x)} />
         </div>
       </Card>
       <Card title="Images">
         <div className="space-y-6">
-          <MediaField label="Cover image" value={v.coverImage} onChange={(u) => set("coverImage", u)} />
-          <GalleryEditor label="Screenshot gallery" value={v.screenshots} onChange={(x) => set("screenshots", x)} />
+          <ImageField label="Cover image" value={v.coverImage} onChange={(u) => set("coverImage", u)} hint="16:10 landscape works best (e.g. 1600×1000)." />
+          <GalleryField label="Gallery screenshots" value={v.screenshots} onChange={(x) => set("screenshots", x)} />
         </div>
       </Card>
-      <SeoCard title={v.seoTitle} description={v.seoDescription} onTitle={(t) => set("seoTitle", t)} onDescription={(t) => set("seoDescription", t)} />
+      <SeoCard title={v.seoTitle} description={v.seoDescription} onTitle={(t) => set("seoTitle", t)} onDescription={(t) => set("seoDescription", t)} ogImage={v.ogImage} onOgImage={(u) => set("ogImage", u)} />
     </EditorFrame>
   );
 }
 
 /* --------------------------------- Product -------------------------------- */
 
-export type ProductForm = Omit<Product, "id" | "updatedAt" | "seoTitle" | "seoDescription" | "icon" | "appStoreUrl" | "googlePlayUrl" | "microsoftStoreUrl" | "websiteUrl"> & {
-  seoTitle: string;
-  seoDescription: string;
-  icon: string;
-  appStoreUrl: string;
-  googlePlayUrl: string;
-  microsoftStoreUrl: string;
-  websiteUrl: string;
-};
+export type ProductForm = NullableToString<
+  Omit<Product, "id" | "updatedAt">,
+  "seoTitle" | "seoDescription" | "icon" | "appStoreUrl" | "googlePlayUrl" | "microsoftStoreUrl" | "websiteUrl" | "ogImage" | "publishedAt"
+>;
 
 export function ProductEditor({ initial, ...common }: Common & { initial: ProductForm }) {
+  const { ImageField, GalleryField } = useEditorBackend();
   const [v, setV] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { dirty, markSaved } = useDirty(v);
@@ -184,11 +223,15 @@ export function ProductEditor({ initial, ...common }: Common & { initial: Produc
         <div className="grid gap-4 md:grid-cols-2">
           <TextInput label="Product name" required value={v.name} error={errors.name} maxLength={80} onChange={(t) => setV((p) => ({ ...p, name: t, slug: slugSync.auto ? slugify(t) : p.slug }))} />
           <TextInput label="Slug" required value={v.slug} error={errors.slug} hint={`URL: /products/${v.slug || "…"}`} onChange={(s) => { slugSync.touch(); set("slug", s); }} />
-          <TextInput label="Category" required value={v.category} error={errors.category} placeholder="e.g. Productivity" onChange={(t) => set("category", t)} />
-          <TextInput label="Display order" type="number" value={String(v.sortOrder)} onChange={(n) => set("sortOrder", Number(n) || 0)} />
-          <TextArea className="md:col-span-2" label="One-sentence description" required value={v.tagline} error={errors.tagline} maxLength={200} rows={2} onChange={(t) => set("tagline", t)} />
+          <TextInput label="Display order" type="number" value={String(v.sortOrder)} onChange={(n) => set("sortOrder", Number(n) || 0)} hint="Lower numbers appear first." />
+          <TextInput label="Publication date" type="date" value={dateInputValue(v.publishedAt)} error={errors.publishedAt} onChange={(d) => set("publishedAt", d)} hint="Set automatically when first published." />
           <div className="md:col-span-2">
-            <CheckboxGroup label="Platforms" options={platformOptions} value={v.platforms} onChange={(x) => set("platforms", x)} />
+            <TagInput label="Categories" value={v.categories} onChange={(x) => set("categories", x)} hint="e.g. Productivity, Health & Fitness. The first is the primary category." />
+            {errors.categories ? <p role="alert" className="mt-1 text-xs text-red-300">{errors.categories}</p> : null}
+          </div>
+          <TextArea className="md:col-span-2" label="Short description" required value={v.tagline} error={errors.tagline} maxLength={200} rows={2} onChange={(t) => set("tagline", t)} hint="One sentence shown on product cards." />
+          <div className="md:col-span-2">
+            <CheckboxGroup label="Supported platforms" options={platformOptions} value={v.platforms} onChange={(x) => set("platforms", x)} />
           </div>
           <div className="md:col-span-2">
             <Toggle label="Featured on homepage" checked={v.featured} onChange={(b) => set("featured", b)} />
@@ -197,25 +240,25 @@ export function ProductEditor({ initial, ...common }: Common & { initial: Produc
       </Card>
       <Card title="Store links" description="Only links that are filled in are shown. Must start with https://">
         <div className="grid gap-4 md:grid-cols-2">
-          <TextInput label="App Store URL" value={v.appStoreUrl} error={errors.appStoreUrl} onChange={(t) => set("appStoreUrl", t)} />
-          <TextInput label="Google Play URL" value={v.googlePlayUrl} error={errors.googlePlayUrl} onChange={(t) => set("googlePlayUrl", t)} />
-          <TextInput label="Microsoft Store URL" value={v.microsoftStoreUrl} error={errors.microsoftStoreUrl} onChange={(t) => set("microsoftStoreUrl", t)} />
-          <TextInput label="Official website" value={v.websiteUrl} error={errors.websiteUrl} onChange={(t) => set("websiteUrl", t)} />
+          <TextInput label="App Store URL" value={v.appStoreUrl} error={errors.appStoreUrl} placeholder="https://apps.apple.com/…" onChange={(t) => set("appStoreUrl", t)} />
+          <TextInput label="Google Play URL" value={v.googlePlayUrl} error={errors.googlePlayUrl} placeholder="https://play.google.com/…" onChange={(t) => set("googlePlayUrl", t)} />
+          <TextInput label="Microsoft Store URL" value={v.microsoftStoreUrl} error={errors.microsoftStoreUrl} placeholder="https://apps.microsoft.com/…" onChange={(t) => set("microsoftStoreUrl", t)} />
+          <TextInput label="Official website" value={v.websiteUrl} error={errors.websiteUrl} placeholder="https://" onChange={(t) => set("websiteUrl", t)} />
         </div>
       </Card>
       <Card title="Product page">
         <div className="space-y-6">
-          <MarkdownField label="Description" value={v.description} onChange={(t) => set("description", t)} />
-          <StringListEditor label="Features" value={v.features} onChange={(x) => set("features", x)} />
+          <MarkdownField label="Detailed description" value={v.description} onChange={(t) => set("description", t)} />
+          <StringListEditor label="Key features" value={v.features} onChange={(x) => set("features", x)} />
         </div>
       </Card>
       <Card title="Images">
         <div className="space-y-6">
-          <MediaField label="App icon" value={v.icon} onChange={(u) => set("icon", u)} hint="Square image, at least 256×256." />
-          <GalleryEditor label="Screenshots" value={v.screenshots} onChange={(x) => set("screenshots", x)} />
+          <ImageField label="Product icon" value={v.icon} onChange={(u) => set("icon", u)} hint="Square image, at least 256×256." />
+          <GalleryField label="Screenshots" value={v.screenshots} onChange={(x) => set("screenshots", x)} />
         </div>
       </Card>
-      <SeoCard title={v.seoTitle} description={v.seoDescription} onTitle={(t) => set("seoTitle", t)} onDescription={(t) => set("seoDescription", t)} />
+      <SeoCard title={v.seoTitle} description={v.seoDescription} onTitle={(t) => set("seoTitle", t)} onDescription={(t) => set("seoDescription", t)} ogImage={v.ogImage} onOgImage={(u) => set("ogImage", u)} />
     </EditorFrame>
   );
 }

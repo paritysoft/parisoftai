@@ -11,12 +11,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:rls": "node scripts/test-rls.mjs",
     "db:seed:generate": "tsx scripts/generate-seed.ts",
-    "admin:bootstrap": "node scripts/bootstrap-admin.mjs"
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "content:check": "tsx scripts/check-content.ts",
+    "admin:hash-password": "node scripts/hash-admin-password.mjs",
+    "test:e2e:git-cms": "node scripts/e2e-git-cms.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -24,6 +27,7 @@
     "@supabase/supabase-js": "^2.117.3",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
+    "jose": "^6.2.12",
     "lucide-react": "^1.52.0",
     "next": "^16.4.0",
     "react": "^19.3.0",
@@ -45,7 +49,6 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.0",
-    "jose": "^6.2.12",
     "pg": "^8.23.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",

@@ -11,9 +11,9 @@ import { ServiceIcon } from "@/components/ui/icon";
 import { buttonClasses } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { JsonLd } from "@/components/website/json-ld";
-import { findRedirect, getService, getSiteSettings, listProjects, listServices } from "@/lib/content/repository";
+import { findRedirect, getService, listProjects, listServices } from "@/lib/content/repository";
 import { buildMetadata } from "@/lib/seo";
-import { absoluteUrl } from "@/lib/site";
+import { serviceJsonLd } from "@/lib/structured-data";
 
 export const revalidate = 3600;
 
@@ -42,7 +42,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
     notFound();
   }
 
-  const [projects, settings, all] = await Promise.all([listProjects(), getSiteSettings(), listServices()]);
+  const [projects, all] = await Promise.all([listProjects(), listServices()]);
   const techs = new Set(service.technologies.map((t) => t.toLowerCase()));
   const related = projects.filter((p) => p.technologies.some((t) => techs.has(t.toLowerCase()))).slice(0, 2);
   const others = all.filter((s) => s.slug !== service.slug).slice(0, 3);
@@ -60,7 +60,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
         </div>
       </PageHero>
 
-      <div className="container-site space-y-24 pb-24">
+      <div className="container-site space-y-16 pb-20 sm:space-y-20 sm:pb-24">
         {service.problems.length > 0 && (
           <section aria-labelledby="problems" className="grid gap-10 lg:grid-cols-[1fr_1.4fr]">
             <div>
@@ -182,16 +182,7 @@ export default async function ServicePage({ params }: PageProps<"/services/[slug
           </nav>
         )}
       </div>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Service",
-          name: service.title,
-          description: service.shortDescription,
-          url: absoluteUrl(`/services/${service.slug}`),
-          provider: { "@type": "Organization", name: settings.general.companyName, url: absoluteUrl("/") },
-        }}
-      />
+      <JsonLd data={serviceJsonLd(service)} />
     </>
   );
 }

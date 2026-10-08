@@ -19,7 +19,7 @@ describe("content validation", () => {
     name: "My App",
     tagline: "Does a useful thing.",
     description: "",
-    category: "Utility",
+    categories: ["Utility"],
     icon: "",
     platforms: ["ios"],
     features: ["", "Fast"],
@@ -61,5 +61,5 @@ describe("normalizeHome", () => {
     expect(n.sections[0]?.key).toBe("cta");
     expect(n.sections.find((s) => s.key === "stats")?.visible).toBe(false);
   });
-  it("tolerates garbage", () => expect(normalizeHome("nope").sections).toHaveLength(8));
+  it("tolerates garbage", () => expect(normalizeHome("nope").sections).toHaveLength(9));
 });

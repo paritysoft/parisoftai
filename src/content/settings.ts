@@ -9,12 +9,13 @@ export const settingsSeed: SiteSettings = {
     companyName: "ParitySoft AI",
     siteUrl: "https://parisoftai.com",
     description:
-      "ParitySoft AI develops mobile, desktop, and cross-platform applications. Explore our software development services and digital products.",
+      "ParitySoft AI builds iOS, Android, Flutter, macOS, Windows and AI-powered software for businesses and digital product owners.",
     footerDescription:
       "Mobile app development and digital product engineering for iOS, Android, macOS, Windows and AI-powered software.",
     logoUrl: "",
     faviconUrl: "",
-    contactEmail: "",
+    // Optional public address shown on /contact (server-side env, read at build time).
+    contactEmail: (process.env.CONTACT_PUBLIC_EMAIL ?? "").trim(),
     phone: "",
     location: "",
     socials: [],
@@ -28,7 +29,7 @@ export const settingsSeed: SiteSettings = {
     defaultTitle: "ParitySoft AI | Mobile App & Software Development",
     titleTemplate: "%s | ParitySoft AI",
     defaultDescription:
-      "ParitySoft AI develops mobile, desktop, and cross-platform applications. Explore our software development services and digital products.",
+      "ParitySoft AI builds iOS, Android, Flutter, macOS, Windows and AI-powered software for businesses and digital product owners.",
     ogImage: "",
   },
   contact_form: {

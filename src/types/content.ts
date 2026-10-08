@@ -1,15 +1,26 @@
 export const CONTENT_STATUSES = ["draft", "published", "archived"] as const;
 export type ContentStatus = (typeof CONTENT_STATUSES)[number];
 
-export const PLATFORMS = ["ios", "android", "macos", "windows", "web"] as const;
+export const PLATFORMS = ["ios", "android", "flutter", "macos", "windows", "web", "ai"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
   ios: "iOS",
   android: "Android",
+  flutter: "Flutter",
   macos: "macOS",
   windows: "Windows",
   web: "Web",
+  ai: "AI",
+};
+
+/** Platforms that are operating systems (used for SoftwareApplication.operatingSystem). */
+export const OPERATING_SYSTEMS: Partial<Record<Platform, string>> = {
+  ios: "iOS",
+  android: "Android",
+  macos: "macOS",
+  windows: "Windows",
+  web: "Web browser",
 };
 
 export const STAFF_ROLES = ["super_admin", "admin", "editor"] as const;
@@ -97,17 +108,27 @@ export interface Project {
   id: string;
   slug: string;
   title: string;
+  /** Short description (cards, meta description fallback) */
   summary: string;
+  /** Full description (Markdown) */
   description: string;
   category: string;
+  /** company = ParitySoft AI-owned product; client = work done for a client */
   ownership: "client" | "company";
+  /** Client projects can be published only when the client has authorised it. */
+  clientApproved: boolean;
   platforms: Platform[];
   technologies: string[];
+  keyFeatures: string[];
   coverImage: string | null;
   screenshots: GalleryImage[];
   challenge: string | null;
   solution: string | null;
   results: string[];
+  projectUrl: string | null;
+  appStoreUrl: string | null;
+  googlePlayUrl: string | null;
+  microsoftStoreUrl: string | null;
   externalLinks: LinkItem[];
   attribution: string | null;
   featured: boolean;
@@ -115,6 +136,8 @@ export interface Project {
   status: ContentStatus;
   seoTitle: string | null;
   seoDescription: string | null;
+  ogImage: string | null;
+  publishedAt: string | null;
   updatedAt: string;
 }
 
@@ -122,9 +145,11 @@ export interface Product {
   id: string;
   slug: string;
   name: string;
+  /** Short description */
   tagline: string;
+  /** Detailed description (Markdown) */
   description: string;
-  category: string;
+  categories: string[];
   icon: string | null;
   platforms: Platform[];
   features: string[];
@@ -138,6 +163,8 @@ export interface Product {
   status: ContentStatus;
   seoTitle: string | null;
   seoDescription: string | null;
+  ogImage: string | null;
+  publishedAt: string | null;
   updatedAt: string;
 }
 
@@ -166,7 +193,7 @@ export interface GenericPageContent {
   blocks: Block[];
 }
 
-export const HOME_SECTION_KEYS = ["stats", "services", "work", "products", "why", "process", "proof", "cta"] as const;
+export const HOME_SECTION_KEYS = ["stats", "services", "why", "tech", "process", "work", "products", "proof", "cta"] as const;
 export type HomeSectionKey = (typeof HOME_SECTION_KEYS)[number];
 
 export interface HomeSectionBase {
@@ -182,6 +209,7 @@ export type HomeSection =
   | (HomeSectionBase & { key: "work" })
   | (HomeSectionBase & { key: "products" })
   | (HomeSectionBase & { key: "why"; items: TitledItem[] })
+  | (HomeSectionBase & { key: "tech" })
   | (HomeSectionBase & { key: "process"; items: TitledItem[] })
   | (HomeSectionBase & {
       key: "proof";

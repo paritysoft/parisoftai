@@ -1,8 +1,8 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { serverEnv } from "@/lib/env";
-import { sendLeadNotification } from "@/lib/leads/email";
+import { isEmailDeliveryConfigured, sendLeadNotification } from "@/lib/leads/email";
 import { RATE_LIMIT, type LeadDeps, type StoredLead } from "@/lib/leads/submit";
 import type { NotificationSettings } from "@/types/content";
 
@@ -92,6 +92,60 @@ export function createLeadDeps(): LeadDeps {
       patch.notification_attempts = (data?.notification_attempts ?? 0) + (result.status === "skipped" ? 0 : 1);
       await db.from("leads").update(patch).eq("id", leadId);
     },
+    log: (msg, meta) => console.warn(`[contact] ${msg}`, meta ?? ""),
+  };
+}
+
+/* ------------------------- Email-only (no database) ------------------------ */
+
+export type ContactDelivery = "database" | "email" | "none";
+
+/** How contact inquiries are delivered: stored in Supabase, emailed via Resend, or not at all. */
+export function contactDelivery(): ContactDelivery {
+  if (serverEnv.supabaseUrl && serverEnv.supabasePublishableKey && serverEnv.supabaseSecretKey) return "database";
+  if (isEmailDeliveryConfigured()) return "email";
+  return "none";
+}
+
+const recentHits = new Map<string, number[]>();
+const seenSubmissions = new Map<string, StoredLead>();
+
+/**
+ * Delivers inquiries by email only. Rate limiting and duplicate detection are in-memory
+ * (per server instance) — adequate for a low-volume contact form; Supabase adds durable storage.
+ */
+export function createEmailOnlyDeps(): LeadDeps {
+  return {
+    notificationRequired: true,
+    async hitRateLimit(keyHash) {
+      const now = Date.now();
+      const hits = (recentHits.get(keyHash) ?? []).filter((t) => t > now - RATE_LIMIT.windowMs);
+      hits.push(now);
+      recentHits.set(keyHash, hits);
+      if (recentHits.size > 5000) recentHits.clear();
+      return hits.length;
+    },
+    async insertLead(input) {
+      const existing = seenSubmissions.get(input.submissionId);
+      if (existing) return { lead: existing, duplicate: true };
+      const lead: StoredLead = {
+        id: randomUUID(),
+        fullName: input.fullName,
+        email: input.email,
+        companyName: input.companyName,
+        serviceRequired: input.serviceRequired,
+        estimatedBudget: input.estimatedBudget,
+        preferredTimeline: input.preferredTimeline,
+        projectDescription: input.projectDescription,
+        createdAt: new Date().toISOString(),
+      };
+      if (seenSubmissions.size > 2000) seenSubmissions.clear();
+      seenSubmissions.set(input.submissionId, lead);
+      return { lead, duplicate: false };
+    },
+    notify: (lead) => sendLeadNotification(lead, [], { adminLink: false }),
+    async recordNotification() {},
+    forget: (id) => void seenSubmissions.delete(id),
     log: (msg, meta) => console.warn(`[contact] ${msg}`, meta ?? ""),
   };
 }

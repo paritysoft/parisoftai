@@ -7,6 +7,7 @@ import {
   ProofSection,
   ServicesSection,
   StatsSection,
+  TechSection,
   WhySection,
   WorkSection,
 } from "@/components/home/sections";
@@ -39,6 +40,8 @@ export default async function HomePage() {
               return <ProductsSection key={section.key} section={section} products={products} />;
             case "why":
               return <WhySection key={section.key} section={section} />;
+            case "tech":
+              return <TechSection key={section.key} section={section} services={services} />;
             case "process":
               return <ProcessSection key={section.key} section={section} />;
             case "proof":

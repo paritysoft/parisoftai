@@ -41,6 +41,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Git-backed content files are read at runtime by server functions (ISR, admin): bundle them.
+  outputFileTracingIncludes: { "/**": ["./content/**/*.json"] },
+  experimental: {
+    // Admin image uploads (each ≤ 3.5 MB) go through a Server Action; Vercel caps requests at 4.5 MB.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: supabaseUrl
@@ -52,6 +58,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      { source: "/admin", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }] },
       { source: "/admin/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }, { key: "Cache-Control", value: "no-store" }] },
     ];
   },

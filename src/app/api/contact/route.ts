@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isServiceRoleConfigured } from "@/lib/env";
 import { contactRequestSchema } from "@/lib/validation/lead";
 import { submitLead } from "@/lib/leads/submit";
-import { clientIp, createLeadDeps, hashIp } from "@/lib/leads/server-deps";
+import { clientIp, contactDelivery, createEmailOnlyDeps, createLeadDeps, hashIp } from "@/lib/leads/server-deps";
 
 export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 20_000;
@@ -32,6 +32,11 @@ export async function POST(req: NextRequest) {
     raw = JSON.parse(text);
   } catch {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400, headers: noStore });
+  }
+
+  if (!isServiceRoleConfigured() && contactDelivery() === "email") {
+    const result = await submitLead(raw, hashIp(clientIp(req.headers)), createEmailOnlyDeps());
+    return NextResponse.json(result.body, { status: result.status, headers: noStore });
   }
 
   if (!isServiceRoleConfigured()) {

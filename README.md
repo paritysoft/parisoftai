@@ -28,7 +28,9 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-Without Supabase variables the public site runs on the bundled seed content (`src/content/*`) and the contact form validates but reports that nothing was stored. The admin panel needs Supabase.
+**Production currently runs without a database.** Services and page copy come from `src/content/*`; portfolio projects and products come from Git-backed JSON files in `content/`, edited through the admin at `/admin`, which commits to GitHub so Vercel redeploys automatically. The contact form emails inquiries through Resend. Setup: **[docs/CONTENT_PUBLISHING.md](docs/CONTENT_PUBLISHING.md)**.
+
+When Supabase variables are set, the site and `/admin` switch to the full Supabase CMS described below.
 
 ## Full local setup with Supabase
 
@@ -52,11 +54,15 @@ Without Supabase variables the public site runs on the bundled seed content (`sr
 | `npm run test:rls` | Applies all migrations to a throwaway PostgreSQL cluster and checks 59 RLS rules per role |
 | `npm run test:e2e:local` | Fresh Postgres + PostgREST + test gateway → build → Playwright (53 tests incl. axe). Needs PostgreSQL server binaries and a PostgREST binary (`POSTGREST_BIN`) |
 | `npm run test:e2e` | Playwright against an already-running app (`E2E_BASE_URL`) |
+| `npm run test:e2e:git-cms` | Builds the site and runs the Git-backed admin → publish → unpublish flow (49 checks incl. SEO, JSON-LD, axe) |
+| `npm run content:check` | Validates every file in `content/` (run before committing hand edits) |
+| `npm run admin:hash-password` | Creates `ADMIN_PASSWORD_HASH` + `ADMIN_SESSION_SECRET` for the Git-backed admin |
 | `npm run db:seed:generate` | Regenerates `supabase/seed.sql` from `src/content/*` |
 | `npm run admin:bootstrap` | Creates the first Super Admin |
 
 ## Documentation
 
+- [docs/CONTENT_PUBLISHING.md](docs/CONTENT_PUBLISHING.md) — **start here**: admin + publishing without a database
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Supabase, Vercel, domain, email, go-live checklist
 - [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) — using the CMS, roles, publishing, content updates
 - [docs/CONTENT_REQUIREMENTS.md](docs/CONTENT_REQUIREMENTS.md) — business content still needed before launch

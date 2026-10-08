@@ -8,6 +8,7 @@ import { ServiceCard } from "@/components/website/service-card";
 import { ProjectCard } from "@/components/website/project-card";
 import { ProductCard } from "@/components/website/product-card";
 import { ProcessTimeline } from "@/components/home/process-timeline";
+import { TechExpertise } from "@/components/website/capabilities";
 import { cn } from "@/lib/utils";
 import type { HomeSection, Product, Project, Service } from "@/types/content";
 
@@ -63,7 +64,7 @@ export function ServicesSection({ section, services }: { section: SectionOf<"ser
             </Link>
           }
         />
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {services.map((s, i) => (
             <Reveal as="li" key={s.id} delay={(i % 4) * 60}>
               <ServiceCard service={s} />
@@ -75,8 +76,9 @@ export function ServicesSection({ section, services }: { section: SectionOf<"ser
   );
 }
 
+/** Only published projects marked "Featured" appear on the homepage; no section otherwise. */
 export function WorkSection({ section, projects }: { section: SectionOf<"work">; projects: Project[] }) {
-  const featured = (projects.some((p) => p.featured) ? projects.filter((p) => p.featured) : projects).slice(0, 4);
+  const featured = projects.filter((p) => p.featured).slice(0, 4);
   if (featured.length === 0) return null;
   return (
     <section aria-labelledby="work-heading" className="section-y border-t border-line/60">
@@ -87,11 +89,11 @@ export function WorkSection({ section, projects }: { section: SectionOf<"work">;
           description={section.description}
           action={
             <Link href="/work" className={buttonClasses("secondary", "md")}>
-              View all work <ArrowRight className="size-4" aria-hidden="true" />
+              View all projects <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           }
         />
-        <ul className={cn("mt-12 grid gap-5", featured.length > 1 && "md:grid-cols-2")}>
+        <ul className={cn("mt-10 grid gap-5", featured.length > 1 && "md:grid-cols-2", featured.length === 1 && "max-w-3xl")}>
           {featured.map((p) => (
             <Reveal as="li" key={p.id}>
               <ProjectCard project={p} />
@@ -103,8 +105,9 @@ export function WorkSection({ section, projects }: { section: SectionOf<"work">;
   );
 }
 
+/** Only published products marked "Featured" appear on the homepage; no section otherwise. */
 export function ProductsSection({ section, products }: { section: SectionOf<"products">; products: Product[] }) {
-  const shown = (products.some((p) => p.featured) ? products.filter((p) => p.featured) : products).slice(0, 6);
+  const shown = products.filter((p) => p.featured).slice(0, 6);
   if (shown.length === 0) return null;
   return (
     <section aria-labelledby="products-heading" className="section-y relative overflow-hidden border-t border-line/60 bg-ink-900/60">
@@ -116,11 +119,11 @@ export function ProductsSection({ section, products }: { section: SectionOf<"pro
           description={section.description}
           action={
             <Link href="/products" className={buttonClasses("secondary", "md")}>
-              All products <ArrowRight className="size-4" aria-hidden="true" />
+              View all products <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           }
         />
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className={cn("mt-10 grid gap-4", shown.length > 1 && "sm:grid-cols-2", shown.length > 2 && "lg:grid-cols-3", shown.length === 1 && "max-w-xl")}>
           {shown.map((p) => (
             <Reveal as="li" key={p.id}>
               <ProductCard product={p} />
@@ -140,7 +143,7 @@ export function WhySection({ section }: { section: SectionOf<"why"> }) {
     <section aria-labelledby="why-heading" className="section-y border-t border-line/60">
       <div className="container-site">
         <SectionHeader id="why-heading" heading={section.heading} description={section.description} />
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {section.items.map((item, i) => {
             const wide = BENTO_SPANS[i % BENTO_SPANS.length] !== "";
             return (
@@ -163,13 +166,27 @@ export function WhySection({ section }: { section: SectionOf<"why"> }) {
   );
 }
 
+export function TechSection({ section, services }: { section: SectionOf<"tech">; services: Service[] }) {
+  if (!services.some((s) => s.technologies.length > 0)) return null;
+  return (
+    <section aria-labelledby="tech-heading" className="section-y border-t border-line/60">
+      <div className="container-site">
+        <SectionHeader id="tech-heading" heading={section.heading} description={section.description} />
+        <div className="mt-10">
+          <TechExpertise services={services} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ProcessSection({ section }: { section: SectionOf<"process"> }) {
   if (section.items.length === 0) return null;
   return (
     <section aria-labelledby="process-heading" className="section-y border-t border-line/60">
       <div className="container-site">
         <SectionHeader id="process-heading" heading={section.heading} description={section.description} />
-        <div className="mt-14">
+        <div className="mt-12">
           <ProcessTimeline steps={section.items} />
         </div>
       </div>
@@ -186,7 +203,7 @@ export function ProofSection({ section }: { section: SectionOf<"proof"> }) {
       <div className="container-site">
         <SectionHeader id="proof-heading" heading={useTestimonials ? section.heading : section.fallbackHeading} description={section.description} />
         {useTestimonials ? (
-          <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {testimonials.map((t, i) => (
               <Reveal as="li" key={`${t.name}-${i}`}>
                 <figure className="surface flex h-full flex-col p-7">
@@ -203,7 +220,7 @@ export function ProofSection({ section }: { section: SectionOf<"proof"> }) {
             ))}
           </ul>
         ) : (
-          <ul className="mt-12 grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line md:grid-cols-3">
+          <ul className="mt-10 grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-line bg-line md:grid-cols-3">
             {section.highlights.map((h, i) => (
               <Reveal as="li" key={`${h.title}-${i}`} className="bg-ink-900 p-7">
                 <h3 className="text-lg font-semibold text-fg">{h.title}</h3>

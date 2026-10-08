@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { PreviewBanner } from "@/components/website/preview-banner";
 import { JsonLd } from "@/components/website/json-ld";
 import { getSiteSettings, listProducts, listServices } from "@/lib/content/repository";
-import { absoluteUrl } from "@/lib/site";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 import { safeHref } from "@/lib/utils";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -30,18 +30,8 @@ export default async function WebsiteLayout({ children }: { children: React.Reac
         {children}
       </main>
       <SiteFooter settings={settings} services={services} products={products} />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          name: general.companyName,
-          url: absoluteUrl("/"),
-          description: general.description,
-          ...(general.logoUrl ? { logo: general.logoUrl } : {}),
-          ...(general.contactEmail ? { email: general.contactEmail } : {}),
-          ...(sameAs.length ? { sameAs } : {}),
-        }}
-      />
+      <JsonLd data={organizationJsonLd(general, sameAs)} />
+      <JsonLd data={websiteJsonLd(general.companyName)} />
       <Analytics />
     </div>
   );

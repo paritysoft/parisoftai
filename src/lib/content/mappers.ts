@@ -64,13 +64,19 @@ export function mapProject(r: Row): Project {
     description: str(r.description),
     category: str(r.category),
     ownership: r.ownership === "company" ? "company" : "client",
+    clientApproved: Boolean(r.client_approved),
     platforms: platforms(r.platforms),
     technologies: strArr(r.technologies),
+    keyFeatures: strArr(r.key_features),
     coverImage: strOrNull(r.cover_image),
     screenshots: images(r.portfolio_images),
     challenge: strOrNull(r.challenge),
     solution: strOrNull(r.solution),
     results: strArr(r.results),
+    projectUrl: strOrNull(r.project_url),
+    appStoreUrl: strOrNull(r.app_store_url),
+    googlePlayUrl: strOrNull(r.google_play_url),
+    microsoftStoreUrl: strOrNull(r.microsoft_store_url),
     externalLinks: links(r.external_links),
     attribution: strOrNull(r.attribution),
     featured: Boolean(r.featured),
@@ -78,6 +84,8 @@ export function mapProject(r: Row): Project {
     status: (r.status ?? "draft") as ContentStatus,
     seoTitle: strOrNull(r.seo_title),
     seoDescription: strOrNull(r.seo_description),
+    ogImage: strOrNull(r.og_image),
+    publishedAt: strOrNull(r.published_at),
     updatedAt: str(r.updated_at),
   };
 }
@@ -89,7 +97,7 @@ export function mapProduct(r: Row): Product {
     name: str(r.name),
     tagline: str(r.tagline),
     description: str(r.description),
-    category: str(r.category),
+    categories: strArr(r.categories).length ? strArr(r.categories) : strOrNull(r.category) ? [str(r.category)] : [],
     icon: strOrNull(r.icon),
     platforms: platforms(r.platforms),
     features: strArr(r.features),
@@ -103,6 +111,8 @@ export function mapProduct(r: Row): Product {
     status: (r.status ?? "draft") as ContentStatus,
     seoTitle: strOrNull(r.seo_title),
     seoDescription: strOrNull(r.seo_description),
+    ogImage: strOrNull(r.og_image),
+    publishedAt: strOrNull(r.published_at),
     updatedAt: str(r.updated_at),
   };
 }
@@ -150,12 +160,18 @@ export function projectToRow(p: Partial<Project>): Row {
     description: p.description,
     category: p.category,
     ownership: p.ownership,
+    client_approved: p.clientApproved,
     platforms: p.platforms,
     technologies: p.technologies,
+    key_features: p.keyFeatures,
     cover_image: p.coverImage,
     challenge: p.challenge,
     solution: p.solution,
     results: p.results,
+    project_url: p.projectUrl,
+    app_store_url: p.appStoreUrl,
+    google_play_url: p.googlePlayUrl,
+    microsoft_store_url: p.microsoftStoreUrl,
     external_links: p.externalLinks,
     attribution: p.attribution,
     featured: p.featured,
@@ -163,6 +179,8 @@ export function projectToRow(p: Partial<Project>): Row {
     status: p.status,
     seo_title: p.seoTitle,
     seo_description: p.seoDescription,
+    og_image: p.ogImage,
+    published_at: p.publishedAt,
   });
 }
 
@@ -172,7 +190,8 @@ export function productToRow(p: Partial<Product>): Row {
     name: p.name,
     tagline: p.tagline,
     description: p.description,
-    category: p.category,
+    category: p.categories?.[0],
+    categories: p.categories,
     icon: p.icon,
     platforms: p.platforms,
     features: p.features,
@@ -185,6 +204,8 @@ export function productToRow(p: Partial<Product>): Row {
     status: p.status,
     seo_title: p.seoTitle,
     seo_description: p.seoDescription,
+    og_image: p.ogImage,
+    published_at: p.publishedAt,
   });
 }
 

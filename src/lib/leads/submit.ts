@@ -24,6 +24,12 @@ export interface LeadDeps {
   notify: (lead: StoredLead) => Promise<"sent" | "skipped">;
   recordNotification: (leadId: string, result: { status: "sent" | "failed" | "skipped"; error?: string }) => Promise<void>;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
+  /**
+   * Email-only mode (no database): the notification IS the delivery, so success is reported
+   * only if it was sent. `forget` lets a failed submission be retried with the same id.
+   */
+  notificationRequired?: boolean;
+  forget?: (submissionId: string) => void;
 }
 
 export type SubmitResult =
@@ -85,6 +91,18 @@ export async function submitLead(raw: unknown, ipHash: string, deps: LeadDeps): 
 
   // A retried request (same submissionId) must not create a second lead or a second email.
   if (stored.duplicate) return { status: 200, body: { ok: true, message: SUCCESS_MESSAGE } };
+
+  if (deps.notificationRequired) {
+    try {
+      const result = await deps.notify(stored.lead);
+      if (result !== "sent") throw new Error("Email delivery is not configured");
+    } catch (error) {
+      deps.log?.("contact: email delivery failed", { error: String(error).slice(0, 300) });
+      deps.forget?.(data.submissionId);
+      return { status: 500, body: { ok: false, message: "We couldn't send your inquiry due to a server problem. Please try again shortly." } };
+    }
+    return { status: 200, body: { ok: true, message: SUCCESS_MESSAGE } };
+  }
 
   try {
     const result = await deps.notify(stored.lead);

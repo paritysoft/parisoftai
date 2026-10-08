@@ -36,18 +36,6 @@ export const homeSeed: HomeContent = {
         "We design and build scalable, high-performance applications across mobile, desktop, and connected platforms.",
     },
     {
-      key: "work",
-      visible: true,
-      heading: "Digital Products Built With Purpose",
-      description: "Selected projects, shown with the permission and attribution they require.",
-    },
-    {
-      key: "products",
-      visible: true,
-      heading: "Our Own Software Products",
-      description: "Beyond client development, we build and maintain our own digital products.",
-    },
-    {
       key: "why",
       visible: true,
       heading: "Built on Experience. Driven by Engineering.",
@@ -81,6 +69,12 @@ export const homeSeed: HomeContent = {
       ],
     },
     {
+      key: "tech",
+      visible: true,
+      heading: "Technology Expertise",
+      description: "The languages, frameworks and tools we use every day — chosen for each product, not by habit.",
+    },
+    {
       key: "process",
       visible: true,
       heading: "From Idea to Impact",
@@ -94,10 +88,22 @@ export const homeSeed: HomeContent = {
       ],
     },
     {
+      key: "work",
+      visible: true,
+      heading: "Featured Projects",
+      description: "Selected projects, shown with the permission and attribution they require.",
+    },
+    {
+      key: "products",
+      visible: true,
+      heading: "Featured Products",
+      description: "Beyond client development, we build and maintain our own digital products.",
+    },
+    {
       key: "proof",
       visible: true,
       heading: "What clients say",
-      fallbackHeading: "Engineering Experience & Product Highlights",
+      fallbackHeading: "Founder-Led Engineering Experience",
       description: "The experience behind the work we deliver.",
       testimonials: [],
       highlights: [
@@ -123,7 +129,7 @@ export const homeSeed: HomeContent = {
         "Whether you're planning a mobile app, desktop solution, or intelligent software product, we'd love to hear about your project.",
       primaryCta: { label: "Start a Project", href: "/contact" },
       secondaryCta: { label: "Contact Us", href: "/contact#details" },
-    },
+    }
   ],
 };
 

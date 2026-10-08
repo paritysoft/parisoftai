@@ -64,6 +64,7 @@ export async function saveCollectionItem(key: CollectionKey, id: string | null, 
     if (!canPublish && value.status !== "draft") {
       throw new ActionError("Editors can save drafts only. Ask an admin to publish or archive.");
     }
+    if (value.status === "published" && "publishedAt" in value && !value.publishedAt) value.publishedAt = new Date().toISOString();
     const row = cfg.toRow(value);
 
     let savedId = id;

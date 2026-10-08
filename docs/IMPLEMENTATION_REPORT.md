@@ -1,5 +1,54 @@
 # Implementation report
 
+## Update — empty states, Git-backed publishing, SEO (8 October 2026)
+
+### Issues found (audit of the repository and the live site)
+1. `/products` showed only "Product listings are coming soon"; `/work` showed "Case studies are on the way" — oversized placeholder panels as the primary content.
+2. Without Supabase (the live configuration) the admin could not be used at all, and portfolio/product lists were hard-coded to `[]` — there was **no way to publish anything**.
+3. The live contact form returned **503 "temporarily unavailable"** in production because it required Supabase.
+4. Homepage showed *non-featured* items when nothing was featured; no technology-expertise section.
+5. Sitemap omitted `/work` and `/products`, had no `lastmod`; Service JSON-LD duplicated the organisation; no `WebSite` schema; `og:locale` missing.
+6. Product model had a single category; projects lacked key features, store links, project URL, OG image, publication date and a client-authorisation flag; platforms lacked Flutter/AI.
+7. `npm run typecheck` failed on a clean checkout (needed `next typegen`).
+8. Section spacing up to 120 px top + bottom per section; 8 services in a 3-column grid left an orphan row.
+
+### Completed changes
+- **Empty states**: `/products` and `/work` now present compact, real content when empty — platforms & technologies linked to each service page, the delivery process (on `/work`) and a CTA. No grids, placeholders or "coming soon". Copy adapts once items are published.
+- **Populated states**: responsive grids sized to the number of items (1 item → single card, not a stretched grid); platform/category (and on `/work` company vs client) filters appear only with ≥ 4 items; long names wrap; descriptions clamp; client vs company work is badged.
+- **Homepage**: order is hero → verified founder stats → services → why us → **technology expertise (new)** → process → featured projects → featured products → founder-led experience → CTA. Featured sections render only when published *and* featured items exist.
+- **Git-backed CMS** (`/admin` when Supabase is not configured): env-based single-admin login (scrypt hash, signed httpOnly cookie), projects & products CRUD reusing the existing editors, Draft/Published/Archived, featured, display order, publication date, SEO title/description/OG image, uploads committed with the item in one GitHub commit → Vercel redeploy. Slug uniqueness, stale-edit detection, automatic 308 redirects on slug change, client-authorisation required to publish client work, store-link domain validation. Invalid content fails the build (previous deployment stays live). Details: [CONTENT_PUBLISHING.md](CONTENT_PUBLISHING.md).
+- **Supabase path kept**: new fields added to mappers + migration `20261008000400_content_fields.sql` (RLS suite re-run: 59/59).
+- **Contact form**: works without a database by emailing inquiries via Resend (success shown only if the email was actually sent). With nothing configured, the page shows an honest notice instead of a form that cannot send.
+- **SEO**: per-page titles/descriptions (homepage title/description as specified), canonical, OG (+ locale) and Twitter on every page, `Organization` + `WebSite` sitewide, `Service`, `SoftwareApplication` (published products only, no ratings), `CreativeWork`, `BreadcrumbList`, `FAQPage`. Sitemap includes `/work`, `/products`, published items with real `lastmod`; drafts/archived/admin excluded. robots disallows admin/API/auth.
+- **Layout**: section spacing reduced (max 96 px), consistent page bottoms, services grid 4×2 at desktop.
+
+### Verified results (run in this session)
+| Check | Result |
+|---|---|
+| `npm run lint` | ✅ 0 problems |
+| `npm run typecheck` (clean checkout) | ✅ |
+| `npm test` (Vitest) | ✅ 69/69 (22 new: publishing service, GitHub client, password, filters, redirects, email-only contact) |
+| `npm run test:rls` (real PostgreSQL incl. new migration) | ✅ 59/59 |
+| `npm run build` with no env vars | ✅ 26 pages, 0 warnings |
+| `npm run test:e2e:git-cms` (admin → GitHub-style publish → rebuild → verify) | ✅ 54/54, run twice |
+| Playwright public suite + axe (email delivery configured) | ✅ 32 passed, 4 Supabase-only skipped |
+| Horizontal overflow at 320/375/390/768/1024/1440/1920 px, 8 pages | ✅ none; one `<h1>` per page |
+| Lighthouse desktop: `/`, `/products`, `/work` | Perf 99–100 · A11y 100 · BP 96 · SEO 100 |
+| Lighthouse mobile (simulated, in a 2-CPU container) | A11y 100 · SEO 100 · Perf 64–90 — same range as the unmodified code measured side-by-side here (70–78 on `/`); CLS 0 |
+| `npm audit --omit=dev` | ✅ 0 vulnerabilities |
+
+Scenarios covered by the E2E run: zero products/projects, one and multiple products, draft excluded, unpublish after publish (404 + gone from listing/sitemap/home), featured project on homepage, project without cover image, long title/description, direct navigation, refresh after publish (rebuild), metadata/JSON-LD in initial HTML, admin not indexable/accessible when signed out, invalid store link, duplicate slug, client work without authorisation.
+
+### Not verified / requires external configuration
+- **Not deployed**; a real GitHub commit + Vercel redeploy was not exercised (the GitHub client is unit-tested against a simulated API; the flow was tested end-to-end with local file writes + rebuilds).
+- **Contact form needs Resend** env vars on Vercel, otherwise it shows the "temporarily unavailable" notice.
+- **Admin needs** `ADMIN_*` and `GITHUB_CONTENT_*` env vars.
+- Mobile Lighthouse ≥ 90 not confirmed in this environment (CPU-limited container; measure on the deployed site with PageSpeed Insights).
+- Real company contact email, social profiles and logo are still unknown, so they are not in structured data.
+
+---
+
+
 _Date: 8 October 2026 · Status: built and tested locally; **not deployed**._
 
 ## 1. Features completed

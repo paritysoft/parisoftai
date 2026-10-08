@@ -2,53 +2,61 @@
 
 import { useMemo, useState } from "react";
 import { ProjectCard } from "@/components/website/project-card";
+import { FilterGroup } from "@/components/website/filter-bar";
+import { applyFilters, filterOptions, NO_FILTERS, type FilterState } from "@/lib/content/filters";
 import { cn } from "@/lib/utils";
 import { PLATFORM_LABELS, type Platform, type Project } from "@/types/content";
 
-/** Portfolio grid with platform/category filters. Only filters that match published projects are shown. */
+/** Portfolio grid. Filters appear only when there are enough projects for them to be useful. */
 export function WorkGrid({ projects }: { projects: Project[] }) {
-  const [platform, setPlatform] = useState<Platform | "all">("all");
-  const [category, setCategory] = useState<string>("all");
-
-  const platforms = useMemo(() => Array.from(new Set(projects.flatMap((p) => p.platforms))), [projects]);
-  const categories = useMemo(() => Array.from(new Set(projects.map((p) => p.category))).sort(), [projects]);
-
-  const filtered = projects.filter(
-    (p) => (platform === "all" || p.platforms.includes(platform)) && (category === "all" || p.category === category),
-  );
+  const [f, setF] = useState<FilterState>(NO_FILTERS);
+  const items = useMemo(() => projects.map((p) => ({ ...p, categories: [p.category] })), [projects]);
+  const opts = useMemo(() => filterOptions(items), [items]);
+  const filtered = applyFilters(items, f);
+  const hasFilters = opts.platforms.length + opts.categories.length + opts.ownerships.length > 0;
 
   return (
     <div>
-      <div className="flex flex-col gap-4">
-        {platforms.length > 1 && (
-          <FilterGroup
-            label="Platform"
-            options={[{ value: "all", label: "All platforms" }, ...platforms.map((p) => ({ value: p, label: PLATFORM_LABELS[p] }))]}
-            value={platform}
-            onChange={(v) => setPlatform(v as Platform | "all")}
-          />
-        )}
-        {categories.length > 1 && (
-          <FilterGroup
-            label="Category"
-            options={[{ value: "all", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
-            value={category}
-            onChange={setCategory}
-          />
-        )}
-      </div>
-      <p className="sr-only" aria-live="polite">
-        Showing {filtered.length} of {projects.length} projects
-      </p>
+      {hasFilters ? (
+        <div className="mb-10 flex flex-col gap-4">
+          {opts.ownerships.length > 0 && (
+            <FilterGroup
+              label="Type"
+              options={[{ value: "all", label: "All" }, { value: "company", label: "Our products" }, { value: "client", label: "Client projects" }]}
+              value={f.ownership}
+              onChange={(v) => setF((s) => ({ ...s, ownership: v as FilterState["ownership"] }))}
+            />
+          )}
+          {opts.platforms.length > 0 && (
+            <FilterGroup
+              label="Platform"
+              options={[{ value: "all", label: "All platforms" }, ...opts.platforms.map((p) => ({ value: p, label: PLATFORM_LABELS[p] }))]}
+              value={f.platform}
+              onChange={(v) => setF((s) => ({ ...s, platform: v as Platform | "all" }))}
+            />
+          )}
+          {opts.categories.length > 0 && (
+            <FilterGroup
+              label="Category"
+              options={[{ value: "all", label: "All categories" }, ...opts.categories.map((c) => ({ value: c, label: c }))]}
+              value={f.category}
+              onChange={(v) => setF((s) => ({ ...s, category: v }))}
+            />
+          )}
+          <p className="sr-only" aria-live="polite">
+            Showing {filtered.length} of {projects.length} projects
+          </p>
+        </div>
+      ) : null}
       {filtered.length === 0 ? (
-        <div className="surface mt-10 p-10 text-center text-fg-3">
+        <div className="surface p-8 text-center text-fg-3">
           No projects match these filters.{" "}
-          <button type="button" className="font-medium text-indigo-200 underline underline-offset-4" onClick={() => { setPlatform("all"); setCategory("all"); }}>
+          <button type="button" className="font-medium text-indigo-200 underline underline-offset-4" onClick={() => setF(NO_FILTERS)}>
             Clear filters
           </button>
         </div>
       ) : (
-        <ul className="mt-10 grid gap-5 md:grid-cols-2">
+        <ul className={cn("grid gap-5", filtered.length > 1 ? "md:grid-cols-2" : "max-w-3xl")}>
           {filtered.map((p, i) => (
             <li key={p.id}>
               <ProjectCard project={p} priority={i < 2} />
@@ -56,28 +64,6 @@ export function WorkGrid({ projects }: { projects: Project[] }) {
           ))}
         </ul>
       )}
-    </div>
-  );
-}
-
-function FilterGroup({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div role="group" aria-label={`Filter by ${label.toLowerCase()}`} className="flex flex-wrap items-center gap-2">
-      <span className="mr-1 text-sm text-fg-3">{label}</span>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "min-h-11 rounded-full border px-4 text-sm transition-colors sm:min-h-9",
-            value === o.value ? "border-accent bg-accent/15 text-fg" : "border-line text-fg-3 hover:border-line-strong hover:text-fg",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }

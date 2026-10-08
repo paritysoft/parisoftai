@@ -2,6 +2,17 @@
 
 This covers everything needed to take the site live at **https://parisoftai.com**. Nothing has been deployed yet; follow these steps when you're ready.
 
+## 0. Current setup: no database (recommended until Supabase is added)
+
+1. Vercel → import the repository (framework: Next.js, default build command). No env vars are required for the public site.
+2. Add `NEXT_PUBLIC_SITE_URL=https://parisoftai.com`.
+3. **Contact form** — create a free Resend account, verify the `parisoftai.com` domain (DNS records Resend shows), then set `RESEND_API_KEY`, `CONTACT_FROM_EMAIL` (e.g. `ParitySoft AI <notifications@parisoftai.com>`) and `CONTACT_NOTIFICATION_EMAIL`. Without them the contact page shows "Online inquiries are temporarily unavailable" (plus `CONTACT_PUBLIC_EMAIL` if set) instead of a form that cannot send.
+4. **Admin** — follow [CONTENT_PUBLISHING.md](CONTENT_PUBLISHING.md) (GitHub token + admin credentials).
+5. **Domain** — Vercel → Domains: add `parisoftai.com` (primary) and `www.parisoftai.com` → redirect to `parisoftai.com` (the app also 308-redirects `www`). HTTPS certificates are automatic.
+6. After deploy, check `https://parisoftai.com/robots.txt` and `/sitemap.xml` return 200, then submit the sitemap in Google Search Console.
+
+Sections 1–8 below describe the Supabase setup for later.
+
 ## 1. Environments
 
 Use **two Supabase projects** so preview deployments can never touch live data:

@@ -50,49 +50,94 @@ export const serviceSchema = z.object({
   status: statusSchema,
 });
 
-export const projectSchema = z.object({
-  slug,
-  title: trimmed(120).min(2, "Title is required."),
-  summary: trimmed(320).min(10, "Add a summary (10+ characters)."),
-  description: trimmed(20000),
-  category: trimmed(60).min(2, "Category is required."),
-  ownership: z.enum(["client", "company"]),
-  platforms: z.array(z.enum(PLATFORMS)).max(5),
-  technologies: z.array(trimmed(40)).max(40),
-  coverImage: nullable(safeUrl).nullable(),
-  screenshots: z.array(z.object({ url: safeUrl.refine((v) => v !== "", "Image URL required"), alt: trimmed(200) })).max(30),
-  challenge: nullable(trimmed(8000)).nullable(),
-  solution: nullable(trimmed(8000)).nullable(),
-  results: z.array(trimmed(300)).max(20).transform((a) => a.filter(Boolean)),
-  externalLinks: z.array(link).max(10).transform((a) => a.filter((l) => l.label && l.url)),
-  attribution: nullable(trimmed(200)).nullable(),
-  featured: z.boolean(),
-  sortOrder: z.coerce.number().int().min(-10000).max(10000),
-  status: statusSchema,
-  seoTitle: nullable(trimmed(70)).nullable(),
-  seoDescription: nullable(trimmed(170)).nullable(),
-});
+const storeUrl = (hosts: RegExp, name: string) =>
+  httpsOnly.refine((v) => {
+    if (v === "") return true;
+    try {
+      return hosts.test(new URL(v).hostname);
+    } catch {
+      return false;
+    }
+  }, `Enter a valid ${name} link.`);
+const appStoreUrl = nullable(storeUrl(/^(apps|itunes)\.apple\.com$/i, "App Store")).nullable();
+const googlePlayUrl = nullable(storeUrl(/^play\.google\.com$/i, "Google Play")).nullable();
+const microsoftStoreUrl = nullable(storeUrl(/^(apps\.microsoft\.com|(www\.)?microsoft\.com)$/i, "Microsoft Store")).nullable();
+const isoDate = nullable(
+  z
+    .string()
+    .trim()
+    .max(40)
+    .refine((v) => v === "" || !Number.isNaN(Date.parse(v)), "Enter a valid date."),
+).nullable();
+const gallery = z.array(z.object({ url: safeUrl.refine((v) => v !== "", "Image URL required"), alt: trimmed(200) })).max(30);
+const stringList = (maxItems: number, maxLen: number) => z.array(trimmed(maxLen)).max(maxItems).transform((a) => a.filter(Boolean));
+
+export const projectSchema = z
+  .object({
+    slug,
+    title: trimmed(120).min(2, "Title is required."),
+    summary: trimmed(320).min(10, "Add a short description (10+ characters)."),
+    description: trimmed(20000),
+    category: trimmed(60).min(2, "Category is required."),
+    ownership: z.enum(["client", "company"]),
+    clientApproved: z.boolean().default(false),
+    platforms: z.array(z.enum(PLATFORMS)).max(PLATFORMS.length),
+    technologies: z.array(trimmed(40)).max(40),
+    keyFeatures: stringList(20, 200).default([]),
+    coverImage: nullable(safeUrl).nullable(),
+    screenshots: gallery,
+    challenge: nullable(trimmed(8000)).nullable(),
+    solution: nullable(trimmed(8000)).nullable(),
+    results: stringList(20, 300),
+    projectUrl: nullable(httpsOnly).nullable().default(null),
+    appStoreUrl: appStoreUrl.default(null),
+    googlePlayUrl: googlePlayUrl.default(null),
+    microsoftStoreUrl: microsoftStoreUrl.default(null),
+    externalLinks: z.array(link).max(10).transform((a) => a.filter((l) => l.label && l.url)),
+    attribution: nullable(trimmed(200)).nullable(),
+    featured: z.boolean(),
+    sortOrder: z.coerce.number().int().min(-10000).max(10000),
+    status: statusSchema,
+    seoTitle: nullable(trimmed(70)).nullable(),
+    seoDescription: nullable(trimmed(170)).nullable(),
+    ogImage: nullable(safeUrl).nullable().default(null),
+    publishedAt: isoDate.default(null),
+  })
+  .superRefine((v, ctx) => {
+    if (v.status === "published" && v.ownership === "client" && !v.clientApproved) {
+      ctx.addIssue({ code: "custom", path: ["clientApproved"], message: "Confirm the client has authorised publication before publishing client work." });
+    }
+  });
 
 export const productSchema = z.object({
   slug,
   name: trimmed(80).min(2, "Name is required."),
   tagline: trimmed(200).min(5, "Add a one-sentence description."),
   description: trimmed(20000),
-  category: trimmed(60).min(2, "Category is required."),
+  categories: z
+    .array(trimmed(60))
+    .max(8)
+    .transform((a) => Array.from(new Set(a.filter(Boolean))))
+    .refine((a) => a.length > 0, "Add at least one category."),
   icon: nullable(safeUrl).nullable(),
-  platforms: z.array(z.enum(PLATFORMS)).max(5),
-  features: z.array(trimmed(200)).max(30).transform((a) => a.filter(Boolean)),
-  screenshots: z.array(z.object({ url: safeUrl.refine((v) => v !== "", "Image URL required"), alt: trimmed(200) })).max(30),
-  appStoreUrl: nullable(httpsOnly).nullable(),
-  googlePlayUrl: nullable(httpsOnly).nullable(),
-  microsoftStoreUrl: nullable(httpsOnly).nullable(),
+  platforms: z.array(z.enum(PLATFORMS)).max(PLATFORMS.length),
+  features: stringList(30, 200),
+  screenshots: gallery,
+  appStoreUrl,
+  googlePlayUrl,
+  microsoftStoreUrl,
   websiteUrl: nullable(httpsOnly).nullable(),
   featured: z.boolean(),
   sortOrder: z.coerce.number().int().min(-10000).max(10000),
   status: statusSchema,
   seoTitle: nullable(trimmed(70)).nullable(),
   seoDescription: nullable(trimmed(170)).nullable(),
+  ogImage: nullable(safeUrl).nullable().default(null),
+  publishedAt: isoDate.default(null),
 });
+
+export type ProjectInput = z.output<typeof projectSchema>;
+export type ProductInput = z.output<typeof productSchema>;
 
 /* --------------------------------- Pages --------------------------------- */
 
@@ -119,6 +164,7 @@ export const homeSectionSchema = z.discriminatedUnion("key", [
   z.object({ key: z.literal("work"), ...base }),
   z.object({ key: z.literal("products"), ...base }),
   z.object({ key: z.literal("why"), ...base, items: z.array(titled).max(12) }),
+  z.object({ key: z.literal("tech"), ...base }),
   z.object({ key: z.literal("process"), ...base, items: z.array(titled).max(10) }),
   z.object({ key: z.literal("proof"), ...base, fallbackHeading: trimmed(160), testimonials: z.array(testimonial).max(12), highlights: z.array(titled).max(9) }),
   z.object({ key: z.literal("cta"), ...base, primaryCta: cta, secondaryCta: cta }),

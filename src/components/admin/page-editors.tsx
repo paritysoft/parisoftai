@@ -26,6 +26,7 @@ const SECTION_LABELS: Record<HomeSection["key"], string> = {
   work: "Featured work",
   products: "Our products",
   why: "Why choose us",
+  tech: "Technology expertise",
   process: "Development process",
   proof: "Testimonials / highlights",
   cta: "Final call to action",

@@ -97,3 +97,26 @@ describe("submitLead", () => {
     expect(d.insertLead).toHaveBeenCalledWith(expect.objectContaining({ fullName: "Jane Client" }));
   });
 });
+
+describe("submitLead — email-only mode (no database)", () => {
+  it("reports success only when the email was sent", async () => {
+    const d = deps({ notificationRequired: true });
+    const r = await submitLead(valid, "hash", d);
+    expect(r.status).toBe(200);
+    expect(d.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns an error (not success) when email delivery fails, and allows a retry", async () => {
+    const forget = vi.fn();
+    const d = deps({ notificationRequired: true, forget, notify: vi.fn(async () => { throw new Error("Resend 500"); }) });
+    const r = await submitLead(valid, "hash", d);
+    expect(r.status).toBe(500);
+    expect(r.body.ok).toBe(false);
+    expect(forget).toHaveBeenCalledWith(valid.submissionId);
+  });
+
+  it("treats 'skipped' (email not configured) as a failure", async () => {
+    const d = deps({ notificationRequired: true, notify: vi.fn(async () => "skipped" as const) });
+    expect((await submitLead(valid, "hash", d)).status).toBe(500);
+  });
+});
