@@ -3,7 +3,6 @@ import { Mail, Phone, MapPin, Clock } from "lucide-react";
 import { PageHero } from "@/components/website/page-hero";
 import { BlockRenderer } from "@/components/website/block-renderer";
 import { ContactForm } from "@/components/forms/contact-form";
-import { buttonClasses } from "@/components/ui/button";
 import { getPageContent, getSiteSettings, listServices } from "@/lib/content/repository";
 import { pageSeeds } from "@/content/pages";
 import { buildMetadata } from "@/lib/seo";
@@ -30,25 +29,14 @@ export default async function ContactPage() {
     <>
       <PageHero crumbs={[{ label: "Contact", href: "/contact" }]} heading={page.heading} intro={page.intro} />
       <div className="container-site grid gap-12 pb-20 sm:pb-24 lg:grid-cols-[1.5fr_1fr]">
-        {contactDelivery() !== "none" || process.env.NODE_ENV !== "production" ? (
-          <ContactForm services={serviceOptions} budgetOptions={form.budgetOptions} timelineOptions={form.timelineOptions} consentText={form.consentText} />
-        ) : (
-          <section aria-labelledby="inquiry-unavailable" className="surface flex flex-col items-start gap-4 p-8">
-            <h2 id="inquiry-unavailable" className="text-xl font-semibold text-fg">
-              {general.contactEmail ? "Send us your project details by email" : "Online inquiries are temporarily unavailable"}
-            </h2>
-            <p className="text-fg-2">
-              {general.contactEmail
-                ? "Email us with your goals, target platforms and timeline, and we'll reply with next steps."
-                : "Our inquiry form is being connected. Please check back shortly."}
-            </p>
-            {general.contactEmail ? (
-              <a href={`mailto:${general.contactEmail}?subject=${encodeURIComponent("Project inquiry")}`} className={buttonClasses("primary", "md")}>
-                <Mail className="size-4" aria-hidden="true" /> {general.contactEmail}
-              </a>
-            ) : null}
-          </section>
-        )}
+        <ContactForm
+          services={serviceOptions}
+          budgetOptions={form.budgetOptions}
+          timelineOptions={form.timelineOptions}
+          consentText={form.consentText}
+          delivery={contactDelivery() === "none" && general.contactEmail ? "email" : "server"}
+          contactEmail={general.contactEmail}
+        />
         <aside id="details" className="space-y-10" aria-label="Contact details">
           <ul className="space-y-5">
             <li className="flex gap-4">

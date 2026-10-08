@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
-import { AlertCircle, CheckCircle2, Loader2, Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Mail, Send } from "lucide-react";
 import { leadSchema, type LeadData, type LeadInput } from "@/lib/validation/lead";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,13 +15,36 @@ interface ContactFormProps {
   budgetOptions: string[];
   timelineOptions: string[];
   consentText: string;
+  /**
+   * "server": POST to /api/contact (database or Resend email delivery configured).
+   * "email": no delivery service configured — open the visitor's email app with the
+   * inquiry pre-filled and addressed to `contactEmail`. Never claims the inquiry was sent.
+   */
+  delivery?: "server" | "email";
+  contactEmail?: string;
 }
 
-type Status = { kind: "idle" } | { kind: "success"; message: string } | { kind: "error"; message: string };
+export function buildMailto(to: string, d: { fullName: string; email: string; companyName?: string; serviceRequired: string; estimatedBudget?: string; preferredTimeline?: string; projectDescription: string }): string {
+  const lines = [
+    `Name: ${d.fullName}`,
+    `Email: ${d.email}`,
+    d.companyName ? `Company: ${d.companyName}` : "",
+    `Service: ${d.serviceRequired}`,
+    d.estimatedBudget ? `Budget: ${d.estimatedBudget}` : "",
+    d.preferredTimeline ? `Timeline: ${d.preferredTimeline}` : "",
+    "",
+    "Project description:",
+    d.projectDescription,
+  ].filter((l, i) => l !== "" || i === 6);
+  const subject = `Project inquiry: ${d.serviceRequired} — ${d.fullName}`.replace(/[\r\n]+/g, " ").slice(0, 150);
+  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n").slice(0, 1800))}`;
+}
+
+type Status = { kind: "idle" } | { kind: "success"; message: string } | { kind: "error"; message: string } | { kind: "mailto"; href: string };
 
 const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "");
 
-export function ContactForm({ services, budgetOptions, timelineOptions, consentText }: ContactFormProps) {
+export function ContactForm({ services, budgetOptions, timelineOptions, consentText, delivery = "server", contactEmail = "" }: ContactFormProps) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   // Idempotency key: reused if the same inquiry is retried, replaced after a successful send.
   const submissionId = useRef("");
@@ -55,6 +78,18 @@ export function ContactForm({ services, budgetOptions, timelineOptions, consentT
 
   const onSubmit = async (data: LeadData) => {
     setStatus({ kind: "idle" });
+    if (delivery === "email" && contactEmail) {
+      const href = buildMailto(contactEmail, {
+        ...data,
+        companyName: data.companyName ?? "",
+        estimatedBudget: data.estimatedBudget ?? "",
+        preferredTimeline: data.preferredTimeline ?? "",
+      });
+      track("inquiry_email_opened", { service: data.serviceRequired });
+      window.location.href = href;
+      setStatus({ kind: "mailto", href });
+      return;
+    }
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -80,6 +115,29 @@ export function ContactForm({ services, budgetOptions, timelineOptions, consentT
       setStatus({ kind: "error", message: "Network error — your inquiry was not sent. Check your connection and try again." });
     }
   };
+
+  if (status.kind === "mailto") {
+    return (
+      <div ref={statusRef} tabIndex={-1} role="status" className="surface flex flex-col items-start gap-4 p-8 outline-none">
+        <Mail className="size-8 text-indigo-300" aria-hidden="true" />
+        <h2 className="text-2xl font-bold text-fg">Almost done — press Send in your email app</h2>
+        <p className="text-fg-2">
+          Your email app should have opened with your inquiry ready to send to <strong className="text-fg">{contactEmail}</strong>. Your message is only sent once you press
+          Send there.
+        </p>
+        <p className="text-sm text-fg-3">
+          Nothing opened? Email us directly at{" "}
+          <a href={status.href} className="text-indigo-200 underline underline-offset-4 hover:text-white">
+            {contactEmail}
+          </a>
+          .
+        </p>
+        <Button variant="secondary" onClick={() => setStatus({ kind: "idle" })}>
+          Back to the form
+        </Button>
+      </div>
+    );
+  }
 
   if (status.kind === "success") {
     return (
@@ -251,10 +309,19 @@ export function ContactForm({ services, budgetOptions, timelineOptions, consentT
           </>
         ) : (
           <>
-            Send inquiry <Send className="size-4" aria-hidden="true" />
+            {delivery === "email" ? "Send inquiry by email" : "Send inquiry"} <Send className="size-4" aria-hidden="true" />
           </>
         )}
       </Button>
+      {delivery === "email" && contactEmail ? (
+        <p className="text-sm text-fg-3">
+          This opens your email app with your message addressed to {contactEmail}. Prefer to write yourself?{" "}
+          <a href={`mailto:${contactEmail}`} className="text-indigo-200 underline underline-offset-4 hover:text-white">
+            Email us directly
+          </a>
+          .
+        </p>
+      ) : null}
     </form>
   );
 }
