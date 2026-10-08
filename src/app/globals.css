@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   ParitySoft AI design tokens
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-ink-950: #090f1e; /* primary background */
+  --color-ink-900: #0f172a; /* secondary background */
+  --color-ink-800: #151e35; /* cards */
+  --color-ink-700: #1c2742;
+  --color-line: #273449;
+  --color-line-strong: #34445f;
+
+  --color-fg: #f8fafc;
+  --color-fg-2: #cbd5e1;
+  --color-fg-3: #94a3b8;
+
+  --color-accent: var(--brand-primary, #6366f1);
+  --color-accent-2: var(--brand-secondary, #8b5cf6);
+  --color-glow: var(--brand-highlight, #22d3ee);
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-card: 20px;
+  --radius-control: 12px;
+
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --text-hero: clamp(2.25rem, 1.2rem + 4.4vw, 4.75rem);
+  --text-hero--line-height: 1.04;
+  --text-hero--letter-spacing: -0.035em;
+  --text-section: clamp(2rem, 1.5rem + 2vw, 3rem);
+  --text-section--line-height: 1.1;
+  --text-section--letter-spacing: -0.025em;
+  --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+  --text-lead--line-height: 1.65;
+
+  --animate-drift: drift 22s ease-in-out infinite alternate;
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-float-slow: float 12s ease-in-out infinite;
+
+  @keyframes drift {
+    0% { transform: translate3d(-4%, -2%, 0) scale(1); }
+    100% { transform: translate3d(4%, 3%, 0) scale(1.08); }
+  }
+  @keyframes rise-in {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -12px, 0); }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 45%, transparent);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-glow);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* CSS-only entrance used in the hero (no JavaScript needed to show content) */
+  .rise-in {
+    animation: rise-in 0.55s var(--ease-out-expo) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  .container-site {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) { .container-site { padding-inline: 1.5rem; } }
+  @media (min-width: 1024px) { .container-site { padding-inline: 2rem; } }
+
+  .section-y {
+    padding-block: clamp(4rem, 3rem + 4vw, 7.5rem);
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, #fff 0%, #e0e7ff 40%, color-mix(in oklab, var(--color-accent-2) 70%, white) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Card surface with a gradient hairline revealed on hover/focus */
+  .surface {
+    position: relative;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--color-ink-800) 92%, white 2%), var(--color-ink-800));
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+  .surface-interactive {
+    transition: transform 0.35s var(--ease-out-expo), border-color 0.35s var(--ease-out-expo), box-shadow 0.35s var(--ease-out-expo);
+  }
+  .surface-interactive::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2) 45%, transparent 75%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.35s var(--ease-out-expo);
+    pointer-events: none;
+  }
+  .surface-interactive:hover,
+  .surface-interactive:focus-within {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 48px -24px color-mix(in oklab, var(--color-accent) 45%, transparent);
+  }
+  .surface-interactive:hover::before,
+  .surface-interactive:focus-within::before {
+    opacity: 1;
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(color-mix(in oklab, var(--color-fg-3) 22%, transparent) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Rendered markdown */
+  .prose-site {
+    color: var(--color-fg-2);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    max-width: 72ch;
+  }
+  .prose-site > * + * { margin-top: 1.1em; }
+  .prose-site h2 { color: var(--color-fg); font-size: 1.5rem; margin-top: 2em; line-height: 1.25; }
+  .prose-site h3 { color: var(--color-fg); font-size: 1.2rem; margin-top: 1.6em; }
+  .prose-site a { color: #c7d2fe; text-decoration: underline; text-underline-offset: 3px; }
+  .prose-site a:hover { color: #fff; }
+  .prose-site strong { color: var(--color-fg); }
+  .prose-site ul { list-style: disc; padding-left: 1.25rem; }
+  .prose-site ol { list-style: decimal; padding-left: 1.25rem; }
+  .prose-site li + li { margin-top: 0.4em; }
+  .prose-site code { font-family: var(--font-mono); font-size: 0.9em; background: var(--color-ink-800); padding: 0.1em 0.35em; border-radius: 6px; }
+  .prose-site blockquote { border-left: 2px solid var(--color-accent); padding-left: 1rem; color: var(--color-fg); }
+}
